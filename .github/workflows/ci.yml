@@ -1,0 +1,71 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: larbi-ishak/backend-api
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Registry
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ id.meta.outputs.tags }}
+          labels: ${{ id.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Step 1: Checkout the gitops-infra repository
+      - name: Checkout GitOps Repo
+        uses: actions/checkout@v4
+        with:
+          repository: your-username/gitops-infra
+          token: ${{ secrets.GITOPS_PAT }} # Required to push to a different repo
+          path: gitops-infra
+
+      # Step 2: Update the manifest and push the commit
+      - name: Update Image Tag in GitOps Repo
+        run: |
+          cd gitops-infra
+
+          # Extract the short SHA used in the image tag
+          NEW_TAG="sha-${GITHUB_SHA::7}"
+
+          # Use sed to replace the image tag in the specific manifest.
+          # Example for the backend-api:
+          sed -i "s|image: docker.io/larbizyoisco/backend-api:.*|image: docker.io/larbizyoisco/backend-api:${NEW_TAG}|g" k8s-manifests/backend.yaml
+
+          # Commit and push the changes
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add k8s-manifests/backend.yaml
+          git commit -m "chore(backend): update image to ${NEW_TAG}"
+          git push origin main
