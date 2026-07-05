@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: larbi-ishak/backend-api
+  IMAGE_NAME: larbizyoisco/backend-api
 
 jobs:
   build-and-push:
@@ -38,8 +38,8 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ id.meta.outputs.tags }}
-          labels: ${{ id.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -47,7 +47,7 @@ jobs:
       - name: Checkout GitOps Repo
         uses: actions/checkout@v4
         with:
-          repository: your-username/gitops-infra
+          repository: larbi-ishak/gitops-infra
           token: ${{ secrets.GITOPS_PAT }} # Required to push to a different repo
           path: gitops-infra
 
